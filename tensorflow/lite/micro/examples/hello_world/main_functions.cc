@@ -37,7 +37,7 @@ int inference_count = 0;
 
 // Create an area of memory to use for input, output, and intermediate arrays.
 // Finding the minimum value for your model may require some trial and error.
-constexpr int kTensorArenaSize = 2 * 1024;
+constexpr int kTensorArenaSize = 8 * 1024;
 uint8_t tensor_arena[kTensorArenaSize];
 }  // namespace
 
@@ -48,6 +48,7 @@ void setup() {
   // Set up logging. Google style is to avoid globals or statics because of
   // lifetime uncertainty, but since this has a trivial destructor it's okay.
   // NOLINTNEXTLINE(runtime-global-variables)
+  printf("setup\n");
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
 
@@ -96,29 +97,36 @@ void loop() {
                    static_cast<float>(kInferencesPerCycle);
   float x_val = position * kXrange;
 
-  printf("%.2f,%.2f,%.2f\n",MMA.x(), MMA.y(), MMA.z());
+  printf("inference_count \tx,y,z %d,%.2f,%.2f,%.2f \r\n",inference_count,MMA.x(), MMA.y(), MMA.z());
 
 
   // Place our calculated x value in the model's input tensor
-  input->data.f[inference_count*3+0] = MMA.x();
-  input->data.f[inference_count*3+1] = MMA.y();
-  input->data.f[inference_count*3+2] = MMA.z();
+  input->data.f[inference_count*3+0] = 1.02;//MMA.x();
+  input->data.f[inference_count*3+1] = 1.02;//MMA.y();
+  input->data.f[inference_count*3+2] = 1.02;//MMA.z();
+  printf("GGDebug input_data[ %d ] = %f",inference_count*3 + 2,input->data.f[inference_count*3+2]);
 
   // Run inference, and report any error
-  if (inference_count == 9) {
+  if (inference_count == 9) 
+  {
+    printf("\t\t\tGGDebug running inference\r\n");
+	//interpreter->Invoke();
+    printf("GGDebug before inference input_data = %f\r\n",input->data.f[0]);
     TfLiteStatus invoke_status = interpreter->Invoke();
+	printf("GGDebug after inference input_data = %f\r\n",input->data.f[0]);
     if (invoke_status != kTfLiteOk) {
       TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x_val: %f\n",
                          static_cast<double>(x_val));
       return;
-    }
-
+    	}
+	
     float distance = 0;
     // Read the predicted y value from the model's output tensor
     for (int i = 0; i < 30; i++) {
       //distance = output->data.f[i];
-      printf("input->data.f[i]: %f\n", input->data.f[i]);
-      printf("output->data.f[i]: %f\n", output->data.f[i]);
+	  printf("\t\t %d\r\n",i);
+      printf(" input->data.f[i]: %f\r\n", input->data.f[i]);
+      printf("output->data.f[i]: %f\r\n", output->data.f[i]);
 
       float temp = output->data.f[i] - input->data.f[i];
       temp *= temp;
@@ -130,7 +138,7 @@ void loop() {
     }
     distance = sqrt(distance);
 
-    printf("\n%f\n\n", distance);
+    printf("\n%f\r\n\n", distance);
 
     // Output the results. A custom HandleOutput function can be implemented
     // for each supported hardware target.
@@ -142,5 +150,4 @@ void loop() {
   
   inference_count += 1;
   if (inference_count == 10) inference_count = 0;
-  
 }
